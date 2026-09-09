@@ -14,7 +14,7 @@ import ru.mrdire.chatselect.ChatTextSelection
 
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.input.KeyEvent
-
+import net.minecraft.client.gui.components.ChatComponent
 import org.slf4j.LoggerFactory
 
 import ru.mrdire.chatselect.ChatTextSelectDragState
@@ -54,8 +54,28 @@ abstract class ChatScreenMixin {
     }
 
     @Unique
-    private fun chatTextSelect_accessor(): ChatHudAccessor {
-        return chatTextSelect_client().gui.chat as ChatHudAccessor
+    private fun chatTextSelect_accessor(): ChatHudAccessor =
+        chatTextSelect_client().gui.hud.getChat() as ChatHudAccessor
+
+    @Unique
+    private fun chatTextSelect_chatComponent(): Any {
+        val gui = chatTextSelect_client().gui
+
+        val method = gui.javaClass.methods.firstOrNull {
+            it.parameterCount == 0 &&
+                    ChatComponent::class.java.isAssignableFrom(it.returnType)
+        }
+
+        if (method != null) {
+            return method.invoke(gui)
+        }
+
+        val field = gui.javaClass.declaredFields.firstOrNull {
+            ChatComponent::class.java.isAssignableFrom(it.type)
+        } ?: error("ChatTextSelect: cannot find ChatComponent in Gui")
+
+        field.isAccessible = true
+        return field.get(gui)
     }
 
     @Unique
@@ -207,7 +227,7 @@ abstract class ChatScreenMixin {
         mouseY: Double
     ): Boolean {
         val client = chatTextSelect_client()
-        val chat = client.gui.chat
+        val chat = chatTextSelect_client().gui.hud.getChat()
 
         val possibleMethods = listOf(
             "getClickedComponentStyleAt",

@@ -14,9 +14,53 @@ import ru.mrdire.chatselect.ChatTextSelectState
 import ru.mrdire.chatselect.ChatTextSelection
 
 import ru.mrdire.chatselect.ChatTextSelectDragState
+import net.minecraft.client.gui.components.ChatComponent
 
 @Mixin(Screen::class)
 abstract class ScreenRenderMixin {
+
+    @Unique
+    private fun chatTextSelect_currentScreen(client: Minecraft): Any? {
+        val method = client.javaClass.methods.firstOrNull {
+            it.parameterCount == 0 &&
+                    (
+                            it.name == "screen" ||
+                                    it.name == "getScreen"
+                            )
+        }
+
+        if (method != null) {
+            return method.invoke(client)
+        }
+
+        val field = client.javaClass.declaredFields.firstOrNull {
+            it.name == "screen"
+        } ?: return null
+
+        field.isAccessible = true
+        return field.get(client)
+    }
+
+//    @Unique
+//    private fun chatTextSelect_chatComponent(client: Minecraft): Any {
+//        val gui = client.gui
+//
+//        val method = gui.javaClass.methods.firstOrNull {
+//            it.parameterCount == 0 &&
+//                    ChatComponent::class.java.isAssignableFrom(it.returnType)
+//        }
+//
+//        if (method != null) {
+//            return method.invoke(gui)
+//        }
+//
+//        val field = gui.javaClass.declaredFields.firstOrNull {
+//            ChatComponent::class.java.isAssignableFrom(it.type)
+//        } ?: error("ChatTextSelect: cannot find ChatComponent in Gui")
+//
+//        field.isAccessible = true
+//        return field.get(gui)
+//    }
 
     @Inject(method = ["extractRenderState"], at = [At("TAIL")])
     private fun onExtractRenderState(
@@ -29,9 +73,9 @@ abstract class ScreenRenderMixin {
         val client = Minecraft.getInstance()
 
         if (!ChatTextSelectState.enabled) return
-        if (client.screen !is ChatScreen) return
+        if ((this as Any) !is ChatScreen) return
 
-        val chatAccessor = client.gui.chat as ChatHudAccessor
+        val chatAccessor = client.gui.hud.getChat() as ChatHudAccessor
 
         val lines = ChatTextSelection.visibleLinesToPlainText(
             chatAccessor.chatTextSelect_getTrimmedMessages()
